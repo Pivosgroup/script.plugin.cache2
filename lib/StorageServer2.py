@@ -21,7 +21,7 @@
 
 import os
 import sys
-import socket
+import socket,select
 import time
 import hashlib
 import inspect
@@ -164,7 +164,12 @@ class StorageServer():
     def _recieveData(self):
         self._log("", 3)
         data = self._recv(self.clientsocket)
+        if not data:
+            return False
         self._log("received data: " + data, 4)
+        
+        #self._showMessage(data, 'received data:')
+        
 
         try:
             data = eval(data)
@@ -228,41 +233,58 @@ class StorageServer():
         sock.listen(1)
         sock.setblocking(0)
 
+
         idle_since = time.time()
         waiting = 0
+        inputs =  [sock]
         while not self._aborting():
-            if waiting == 0:
-                self._log("accepting", 3)
-                waiting = 1
-            try:
-                (self.clientsocket, address) = sock.accept()
-                if waiting == 2:
-                    self._log("Waking up, slept for %s seconds." % int(time.time() - idle_since))
-                waiting = 0
-            except socket.error, e:
-                if e.errno == 11 or e.errno == 10035 or e.errno == 35:
-                    # There has to be a better way to accomplish this.
-                    if idle_since + self.idle < time.time():
-                        if self.instance:
-                            self.die = True
-                        if waiting == 1:
-                            self._log("Idle for %s seconds. Going to sleep. zzzzzzzz " % self.idle)
-                        time.sleep(0.5)
-                        waiting = 2
-                    continue
-                self._log("EXCEPTION : " + repr(e))
-            except:
-                pass
+            rs,ws,es=select.select(inputs,[],[])
+            for r in rs:
+                if r is sock:
+                    clientsock,clientaddr=r.accept()
+                    inputs.append(clientsock)
+                else:
+                    self.clientsocket = r
+                    data = self._recieveData()
+                    if not data:
+                        inputs.remove(r)
+                    else:
+                        self._runCommand(data)
+        
+            # if waiting == 0:
+                # self._log("accepting", 3)
+                # waiting = 1
+            # try:
+                # (self.clientsocket, address) = sock.accept()
+                # if waiting == 2:
+                    # self._log("Waking up, slept for %s seconds." % int(time.time() - idle_since))
+                # waiting = 0
+            # except socket.error, e:
+                # if e.errno == 11 or e.errno == 10035 or e.errno == 35:
+                    # # There has to be a better way to accomplish this.
+                    # if idle_since + self.idle < time.time():
+                        # if self.instance:
+                            # self.die = True
+                        # if waiting == 1:
+                            # self._log("Idle for %s seconds. Going to sleep. zzzzzzzz " % self.idle)
+                        # time.sleep(0.5)
+                        # waiting = 2
+                    # self._log("EXCEPTION : " + repr(e))    
+                    # continue
+                # self._log("EXCEPTION : " + repr(e))
+            # except:
+                # self._log("EXCEPTION : ")
+                # pass
 
-            if waiting:
-                self._log("Continue : " + repr(waiting), 3)
-                continue
+            # if waiting:
+                # self._log("Continue : " + repr(waiting), 3)
+                # continue
 
-            data = self._recieveData()
-            self._runCommand(data)
-            idle_since = time.time()
+            # data = self._recieveData()
+            # self._runCommand(data)
+            # idle_since = time.time()
 
-            self._log("Done")
+            # self._log("Done")
 
         self._log("Closing down")
         sock.close()
@@ -284,6 +306,8 @@ class StorageServer():
             try:
                 if idle:
                     recv_buffer = sock.recv(self.network_buffer_size)
+                    if recv_buffer == '':
+                        return False
                     idle = False
                     i += 1
                     self._log(u"got data  : " + str(i) + u" - " + repr(idle) + u" - " + str(len(data)) + u" + " + str(len(recv_buffer)) + u" | " + repr(recv_buffer)[len(recv_buffer) - 5:], 4)
@@ -325,23 +349,23 @@ class StorageServer():
         while len(data) > 0 or not idle:
             send_buffer = " "
             try:
-                if idle:
-                    if len(data) > self.network_buffer_size:
+                if idle:   #数据小于4096或者数据大于4096的时候第一次发送
+                    if len(data) > self.network_buffer_size:  #大于4096，发送前4096字节
                         send_buffer = data[:self.network_buffer_size]
-                    else:
+                    else: #小于4096的在末尾加上 \r\n发送
                         send_buffer = data + "\r\n"
 
-                    result = sock.send(send_buffer)
+                    result = sock.send(send_buffer)  #通过socket发送
                     i += 1
-                    idle = False
+                    idle = False  #设为忙
                     start = time.time()
-                elif not idle:
+                elif not idle:  #忙，接收回执
                     status = ""
-                    while status.find("COMPLETE\r\n") == -1 and status.find("ACK\r\n") == -1:
+                    while status.find("COMPLETE\r\n") == -1 and status.find("ACK\r\n") == -1: #发送完了之后进行接收，直到接收到 回复 COMPLETE 或者ACK
                         status = sock.recv(15)
                         i -= 1
 
-                    idle = True
+                    idle = True #设为空闲，重新发送
                     if len(data) > self.network_buffer_size:
                         data = data[self.network_buffer_size:]
                     else:
