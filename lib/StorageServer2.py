@@ -183,25 +183,29 @@ class StorageServer():
     def _runCommand(self, data):
         self._log("", 3)
         res = ""
-        if data["action"] == "get":
-            res = self._sqlGet(data["table"], data["name"])
-        elif data["action"] == "get_multi":
-            res = self._sqlGetMulti(data["table"], data["name"], data["items"])
-        elif data["action"] == "set_multi":
-            res = self._sqlSetMulti(data["table"], data["name"], data["data"])
-        elif data["action"] == "set":
-            res = self._sqlSet(data["table"], data["name"], data["data"])
-        elif data["action"] == "del":
-            res = self._sqlDel(data["table"], data["name"])
-        elif data["action"] == "lock":
-            res = self._lock(data["table"], data["name"])
-        elif data["action"] == "unlock":
-            res = self._unlock(data["table"], data["name"])
+        
+        if data.has_key('action'):
+            if data["action"] == "get":
+                res = self._sqlGet(data["table"], data["name"])
+            elif data["action"] == "get_multi":
+                res = self._sqlGetMulti(data["table"], data["name"], data["items"])
+            elif data["action"] == "set_multi":
+                res = self._sqlSetMulti(data["table"], data["name"], data["data"])
+            elif data["action"] == "set":
+                res = self._sqlSet(data["table"], data["name"], data["data"])
+            elif data["action"] == "del":
+                res = self._sqlDel(data["table"], data["name"])
+            elif data["action"] == "lock":
+                res = self._lock(data["table"], data["name"])
+            elif data["action"] == "unlock":
+                res = self._unlock(data["table"], data["name"])
 
-        if len(res) > 0:
-            self._log("Got response: " + str(len(res))  + " - " + str(repr(res))[0:50], 3)
-            self._send(self.clientsocket, repr(res))
-
+            if len(res) > 0:
+                self._log("Got response: " + str(len(res))  + " - " + str(repr(res))[0:50], 3)
+                self._send(self.clientsocket, repr(res))
+        elif data.has_key('action_name'):
+            self._showMessage(data, 'received data:')
+        
         self._log("Done", 3)
 
     def _showMessage(self, heading, message):
