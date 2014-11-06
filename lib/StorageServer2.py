@@ -332,7 +332,7 @@ class StorageServer():
             except socket.error, e:
                 if not e.errno in [10035, 35]:
                     self._log(u"Except error " + repr(e))
-
+                    return False
                 if e.errno in [22]:  # We can't fix this.
                     return ""
 
@@ -801,7 +801,7 @@ class _PersistentDictMixin(object):
             self.initial_update(marshal.loads(a.decode('base64')))
         
     def sync(self):
-        print self.raw_dict()
+        #print self.raw_dict()
         data = marshal.dumps(dict(self.raw_dict())).encode('base64')
         storage =  StorageServer(self.table_name)
         storage.set(self.key,data)
