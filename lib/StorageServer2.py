@@ -242,7 +242,11 @@ class StorageServer():
         waiting = 0
         inputs =  [sock]
         while not self._aborting():
-            rs,ws,es=select.select(inputs,[],[])
+            rs,ws,es=select.select(inputs,[],[],1.0)
+            
+            if 0 == len(rs):
+                continue
+            
             for r in rs:
                 if r is sock:
                     clientsock,clientaddr=r.accept()
