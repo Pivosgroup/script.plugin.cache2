@@ -4,7 +4,7 @@
 '''
 
 
-class StorageServer:
+class StorageServer2:
     def __init__(self, table, timeout=24):
         return None
 
