@@ -45,6 +45,7 @@ except ImportError:
 import shutil
 import collections
 from datetime import datetime
+from datetime import timedelta
 
 
 class StorageServer():
@@ -875,12 +876,15 @@ class _Storage(collections.MutableMapping, _PersistentDictMixin):
 class TimedStorage(_Storage):
     '''A dict with the ability to persist to disk and TTL for items.'''
 
-    def __init__(self, key, table_name='PLUGIN_CACHE_TABLE', TTL=None):
+    def __init__(self, key, TTL=0):
         '''TTL if provided should be a datetime.timedelta. Any entries
         older than the provided TTL will be removed upon load and upon item
         access.
         '''
-        self.TTL = TTL
+        if TTL != 0:
+            self.TTL = timedelta(hours=TTL)
+        else:
+            self.TTL = None
         _Storage.__init__(self, key, table_name='PLUGIN_CACHE_TABLE')
 
     def __setitem__(self, key, val, raw=False):
