@@ -799,11 +799,11 @@ class _PersistentDictMixin(object):
     def __init__(self, key,table_name='PLUGIN_CACHE_TABLE' ):
 
         self.key = key
-        self.table_name = table_name
-        storage =  StorageServer(table_name)
-        a = storage.get(key)
-        if a !='':
-            self.initial_update(marshal.loads(a.decode('base64')))
+        self.table_name = key
+        self.storage =  StorageServer(key)
+        # a = storage.get(key)
+        # if a !='':
+            # self.initial_update(marshal.loads(a.decode('base64')))
         
     def sync(self):
         #print self.raw_dict()
@@ -849,9 +849,17 @@ class _Storage(collections.MutableMapping, _PersistentDictMixin):
 
     def __setitem__(self, key, val):
         self._items.__setitem__(key, val)
+        self.storage.set(key,marshal.dumps(val).encode('base64'))
 
     def __getitem__(self, key):
-        return self._items.__getitem__(key)
+        if self._items.has_key(key):
+            return self._items.__getitem__(key)
+        else:
+            a = self.storage.get(key)
+            if a != "":
+                return marshal.loads(a.decode('base64'))
+            else:
+                return None
 
     def __delitem__(self, key):
         self._items.__delitem__(key)
@@ -889,12 +897,14 @@ class TimedStorage(_Storage):
 
     def __setitem__(self, key, val, raw=False):
         if raw:
-            self._items[key] = val
+            _Storage.__setitem__(self,key,val)
+            #self._items[key] = val
         else:
-            self._items[key] = (val, time.time())
+            _Storage.__setitem__(self,key,(val, time.time()))
+            #self._items[key] = (val, time.time())
 
     def __getitem__(self, key):
-        val, timestamp = self._items[key]
+        val, timestamp = _Storage.__getitem__(self,key)
         if self.TTL and (datetime.utcnow() -
             datetime.utcfromtimestamp(timestamp) > self.TTL):
             del self._items[key]
