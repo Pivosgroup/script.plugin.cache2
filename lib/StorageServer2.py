@@ -807,6 +807,7 @@ class _PersistentDictMixin(object):
         
     def sync(self):
         #print self.raw_dict()
+        return 
         data = marshal.dumps(dict(self.raw_dict())).encode('base64')
         storage =  StorageServer(self.table_name)
         storage.set(self.key,data)
