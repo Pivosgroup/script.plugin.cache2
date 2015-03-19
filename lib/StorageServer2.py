@@ -251,6 +251,7 @@ class StorageServer():
             for r in rs:
                 if r is sock:
                     clientsock,clientaddr=r.accept()
+                    self._log("Accept client: "+ repr(clientaddr))
                     inputs.append(clientsock)
                 else:
                     self.clientsocket = r
@@ -260,40 +261,7 @@ class StorageServer():
                     else:
                         self._runCommand(data)
         
-            # if waiting == 0:
-                # self._log("accepting", 3)
-                # waiting = 1
-            # try:
-                # (self.clientsocket, address) = sock.accept()
-                # if waiting == 2:
-                    # self._log("Waking up, slept for %s seconds." % int(time.time() - idle_since))
-                # waiting = 0
-            # except socket.error, e:
-                # if e.errno == 11 or e.errno == 10035 or e.errno == 35:
-                    # # There has to be a better way to accomplish this.
-                    # if idle_since + self.idle < time.time():
-                        # if self.instance:
-                            # self.die = True
-                        # if waiting == 1:
-                            # self._log("Idle for %s seconds. Going to sleep. zzzzzzzz " % self.idle)
-                        # time.sleep(0.5)
-                        # waiting = 2
-                    # self._log("EXCEPTION : " + repr(e))    
-                    # continue
-                # self._log("EXCEPTION : " + repr(e))
-            # except:
-                # self._log("EXCEPTION : ")
-                # pass
 
-            # if waiting:
-                # self._log("Continue : " + repr(waiting), 3)
-                # continue
-
-            # data = self._recieveData()
-            # self._runCommand(data)
-            # idle_since = time.time()
-
-            # self._log("Done")
 
         self._log("Closing down")
         sock.close()
@@ -354,7 +322,6 @@ class StorageServer():
         self._log(str(len(data)) + u" - " + repr(data)[0:20], 3)
         i = 0
         start = time.time()
-        print len(data)
         while len(data) > 0 or not idle:
             send_buffer = " "
             try:
@@ -796,21 +763,10 @@ class _PersistentDictMixin(object):
     All three serialization formats are backed by fast C implementations.
     '''
 
-    def __init__(self, key,table_name='PLUGIN_CACHE_TABLE' ):
+    def __init__(self, table_name):
 
-        self.key = key
-        self.table_name = key
-        self.storage =  StorageServer(key)
-        # a = storage.get(key)
-        # if a !='':
-            # self.initial_update(marshal.loads(a.decode('base64')))
-        
-    def sync(self):
-        #print self.raw_dict()
-        return 
-        data = marshal.dumps(dict(self.raw_dict())).encode('base64')
-        storage =  StorageServer(self.table_name)
-        storage.set(self.key,data)
+        self.table_name = table_name
+        self.storage =  StorageServer(table_name)
 
     def close(self):
         '''Calls sync'''
@@ -843,10 +799,10 @@ class _Storage(collections.MutableMapping, _PersistentDictMixin):
                  periodically.
     '''
 
-    def __init__(self, key, table_name='PLUGIN_CACHE_TABLE'):
+    def __init__(self, table_name):
         '''Acceptable formats are 'csv', 'json' and 'pickle'.'''
         self._items = {}
-        _PersistentDictMixin.__init__(self, key, table_name)
+        _PersistentDictMixin.__init__(self, table_name)
 
     def __setitem__(self, key, val):
         self._items.__setitem__(key, val)
@@ -885,7 +841,7 @@ class _Storage(collections.MutableMapping, _PersistentDictMixin):
 class TimedStorage(_Storage):
     '''A dict with the ability to persist to disk and TTL for items.'''
 
-    def __init__(self, key, TTL=0):
+    def __init__(self, table, TTL=0):
         '''TTL if provided should be a datetime.timedelta. Any entries
         older than the provided TTL will be removed upon load and upon item
         access.
@@ -894,15 +850,13 @@ class TimedStorage(_Storage):
             self.TTL = timedelta(hours=TTL)
         else:
             self.TTL = None
-        _Storage.__init__(self, key, table_name='PLUGIN_CACHE_TABLE')
+        _Storage.__init__(self, table)
 
     def __setitem__(self, key, val, raw=False):
         if raw:
             _Storage.__setitem__(self,key,val)
-            #self._items[key] = val
         else:
             _Storage.__setitem__(self,key,(val, time.time()))
-            #self._items[key] = (val, time.time())
 
     def __getitem__(self, key):
         val, timestamp = _Storage.__getitem__(self,key)
