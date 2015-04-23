@@ -32,6 +32,7 @@ import gzip
 import StringIO
 import zlib
 import marshal
+import traceback
 
 try: import sqlite
 except: pass
@@ -228,8 +229,10 @@ class StorageServer():
             sock = socket.socket(socket.AF_UNIX)
 
         try:
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             sock.bind(self.socket)
         except Exception, e:
+            traceback.print_exc()
             self._log("Exception: " + repr(e))
             self._showMessage(self.language(100), self.language(200))
 
