@@ -443,6 +443,7 @@ class StorageServer():
         return ""
 
     def _sqlDel(self, table, name):
+        name = name.decode('utf8')
         self._log(name + u" - " + table, 1)
 
         self._checkTable(table)
@@ -453,6 +454,7 @@ class StorageServer():
         return "true"
 
     def _sqlGet(self, table, name):
+        name = name.decode('utf8')
         self._log(name + u" - " + table, 2)
 
         self._checkTable(table)
